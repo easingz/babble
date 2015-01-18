@@ -1,0 +1,10 @@
+function fib (n) {
+	 fibs = {1, 1}
+	 for i = 3, n
+	     fibs[i] = fibs[i - 1] + fibs[i - 2]
+	 return fibs[n]
+}
+
+println(fib(10));
+println(fib(20));
+println(fib(30));
