@@ -5,6 +5,7 @@ package com.easing.babble;
 public class Babble {
 
     public static void main(String args[]) {
-        new Parser(new Lexer(new SourceFileReader(args[0]))).parse();
+        Parser p = new Parser(new Lexer(new SourceFileReader(args[0])));
+        Logger.d("babble", "parsing result: " + p.parse());
     }
 }

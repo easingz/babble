@@ -1,6 +1,6 @@
 This file gives the target grammer of Babble programming language. Since the language is first attempt to write my own, it'll be simple and stupid.
 
-	 program ::= statements
+	 program ::= statements End
 
 	 statements ::= statement stmt_separator statements | null
 
@@ -52,7 +52,7 @@ This file gives the target grammer of Babble programming language. Since the lan
 
 	 prefix_expression ::= var | function_call | '(' expression ')'
 
-	 function_call ::= prefix_expression arguments
+	 function_call ::= var arguments
 
 	 arguments ::= '(' expression_list ')' | map
 
@@ -60,7 +60,7 @@ This file gives the target grammer of Babble programming language. Since the lan
 
 	 field_list ::= field filed_continue| null
 
-	 field ::= '[' expression ']' '=' expression | Identifier '=' expression | expression
+	 field ::= Identifier '=' expression | expression
 
 	 field_continue ::= ';' field | null
 

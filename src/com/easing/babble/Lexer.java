@@ -85,7 +85,7 @@ class Lexer {
         }
     }
 
-    public void pushback(Token t) {
+    public void pushBack(Token t) {
         mForesee.push(t);
     }
 
@@ -178,6 +178,8 @@ class Lexer {
             sb.append(peek());
             advance();
         }
+        //skip ending quote
+        advance();
         String ret = sb.toString();
         return new Token(loc, TokenType.STRING, ret);
     }

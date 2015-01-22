@@ -11,6 +11,7 @@ class Logger {
         "ast",
         "symbol",
         "source",
+        "babble",
     };
     // for speed
     private static HashSet<String> mScopes = new HashSet<String>();
