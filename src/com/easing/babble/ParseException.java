@@ -7,6 +7,6 @@ import java.util.Locale;
 class ParseException extends Exception {
 
     public ParseException(String msg) {
-	super(String.format(Locale.US, "Error occurs while parsing: %s", msg));
+        super(String.format(Locale.US, "Error occurs while parsing: %s", msg));
     }
 }

@@ -2,11 +2,9 @@ This file gives the target grammer of Babble programming language. Since the lan
 
 	 program ::= statements End
 
-	 statements ::= statement stmt_separator statements | null
+	 statements ::= statement ';' statements | null
 
 	 last_statement ::= 'return' expression | null
-
-	 stmt_separator ::= ';' | null
 
 	 block ::= '{' statements last_statement '}' |
 		   statement
@@ -24,21 +22,25 @@ This file gives the target grammer of Babble programming language. Since the lan
 
 	 else_statement ::= 'else' block | null
 
-	 var ::= Identifier |
-		 prefix_expression '[' expression ']' |
-		 prefix_expression '.' Identifier
+	 var ::= Identifier var_expr |
+		 '(' expression ')' var_expr
+
+	 var_expr ::= '[' expression ']' var_expr |
+	              '.' Identifier var_expr |
+		      function_body var_expr |
+		      null
 
 	 variable_list ::= var var_continue
 
-	 var_continue ::= ',' var | null
+	 var_continue ::= ',' variable_list | null
 
 	 expression_list ::= expression expression_continue
 
-	 expression_continue ::= ',' expression | null
+	 expression_continue ::= ',' expression_list | null
 
 	 identifier_list ::= Identifier identifier_continue
 
-	 identifier_continue ::= ',' Identifier | null
+	 identifier_continue ::= ',' Identifier_list | null
 
 	 function ::= 'function' function_body
 
@@ -46,15 +48,16 @@ This file gives the target grammer of Babble programming language. Since the lan
 
 	 function_body ::= '(' identifier_list ')' block
 
-	 expression ::= Nil | False | True | Number | String | function |
-			prefix_expression | map | expression binary_op expression |
-		        uniq_op expression
+	 expression ::= factor binary_expression
 
-	 prefix_expression ::= var | function_call | '(' expression ')'
+	 binary_expression ::= binary_op expression | null
+
+	 factor ::= Nil | False | True | Number | String | function |
+		    var | map | uniq_op expression
 
 	 function_call ::= var arguments
 
-	 arguments ::= '(' expression_list ')' | map
+	 arguments ::= '(' expression_list ')'
 
 	 map ::= '{' field_list '}'
 
