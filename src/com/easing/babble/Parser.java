@@ -39,22 +39,67 @@ class Parser {
     }
 
     private boolean matchToken(TokenType type) throws ParseException {
-        return mLexer.next().type == type;
+        Token t = mLexer.next();
+        boolean ret = t.type == type;
+        if (!ret) {
+            mLexer.pushBack(t);
+            logError("token", t.loc);
+        }
+        return ret;
     }
 
     private boolean matchToken(TokenType type, String text) throws ParseException {
         assert text != null;
+        Logger.d("parser", "trying to match : " + text);
         Token t = mLexer.next();
-        return t.type == type && t.text.equals(text);
+        boolean ret = t.type == type && t.text.equals(text);
+        if (!ret) {
+            mLexer.pushBack(t);
+            logError("token " + t.text, t.loc);
+        }
+        return ret;
+    }
+
+    private boolean matchBlock() throws ParseException {
+        logStart("block");
+        Token t = mLexer.next();
+        if (t.type == TokenType.SIGN && "{".equals(t.text)) {
+            return matchStatements() && matchLastStatment() && matchToken(TokenType.SIGN, "}");
+        } else {
+            mLexer.pushBack(t);
+            return matchStatement();
+        }
+    }
+
+    private boolean matchLastStatment() throws ParseException {
+        logStart("last statement");
+        Token t = mLexer.next();
+        if (t.type == TokenType.KEYWORD && "return".equals(t.text)) {
+            return matchExpression() && matchStmtSeparator();
+        }
+        mLexer.pushBack(t);
+        return true;
     }
 
     private boolean matchStatements() throws ParseException {
         logStart("statements");
         Token t = mLexer.next();
         mLexer.pushBack(t);
-        if (matchStatement()) {
-            return matchToken(TokenType.SIGN, ";") && matchStatements();
+        if (t.type == TokenType.END || t.type == TokenType.KEYWORD && "return".equals(t.text)) {
+            // match epslon
+            return true;
+        } else {
+            return matchStatement() && matchStmtSeparator() && matchStatements();
         }
+    }
+
+    private boolean matchStmtSeparator() throws ParseException {
+        logStart("statement separator");
+        Token t = mLexer.next();
+        if (t.type == TokenType.SIGN && ";".equals(t.text)) {
+            return true;
+        }
+        mLexer.pushBack(t);
         return true;
     }
 
@@ -62,20 +107,31 @@ class Parser {
         logStart("statement");
         Token t = mLexer.next();
         if (t.type == TokenType.IDENTIFIER) {
-            // assignment or function call, should look ahead for '(' to differ
+            // !!!TODO!!! assignment may also start with a function call when parsing a variable
+            // here we just see it as a function call
             Token ahead = mLexer.next();
-            mLexer.pushBack(t);
             mLexer.pushBack(ahead);
-            if (ahead.type == TokenType.SIGN && ahead.text == "(") {
+            mLexer.pushBack(t);
+            if (ahead.type == TokenType.SIGN && "(".equals(ahead.text)) {
+                Logger.d("parser", "it's a function call");
                 return matchFunctionCall();
             } else {
+                Logger.d("parser", "it's an assignment");
                 return matchAssignment();
             }
         } else if (t.type == TokenType.KEYWORD) {
             // 'while', 'if', 'for', 'function', 'local'
-            return matchWhile() || matchIf() || matchFor() ||
-                matchFunctionDef() || matchLocalDecl();
+            mLexer.pushBack(t);
+            switch (t.text) {
+            case "while" : return matchWhile();
+            case "if" : return matchIf();
+            case "for" : return matchFor();
+            case "function" : return matchFunctionDef();
+            case "local" : return matchLocalDecl();
+            default: //no-op
+            }
         }
+        mLexer.pushBack(t);
         logError("statement", t.loc);
         return false;
     }
@@ -83,10 +139,11 @@ class Parser {
     private boolean matchFunctionCall() throws ParseException {
         logStart("function call");
         Token t = mLexer.next();
-        if (t.type = TokenType.IDENTIFIER) {
+        if (t.type == TokenType.IDENTIFIER) {
             Logger.d("parser", "call fuction: " + t.text);
             return matchArguments();
         }
+        mLexer.pushBack(t);
         logError("function call", t.loc);
         return false;
     }
@@ -111,32 +168,35 @@ class Parser {
         logStart("factor");
         Token t = mLexer.next();
         switch (t.type) {
-            case TokenType.NIL:
-            case TokenType.FALSE:
-            case TokenType.NUMBER:
-            case TokenType.STRING:
+            case NIL:
+            case FALSE:
+            case NUMBER:
+            case STRING:
                 Logger.d("parser", "got factor: " + t.text);
                 return true;
-            case TokenType.KEYWORD:
+            case KEYWORD:
                 if ("function".equals(t.text)) {
                     mLexer.pushBack(t);
                     return matchAnonymousFunction();
                 } else {
+                    logError("factor: keyword " + t.text + " not allowed.", t.loc);
+                    mLexer.pushBack(t);
                     return false;
                 }
-            case TokenType.OPERATOR:
+            case OPERATOR:
                 mLexer.pushBack(t);
                 return matchUniqExpr();
-            case TokenType.SIGN:
+            case SIGN:
                 if ("{".equals(t.text)) {
                     mLexer.pushBack(t);
                     return matchMap();
                 }
                 // maybe '(' else fall thru
-            case TokenType.IDENTIFIER:
-                mLexer.pushBack();
+            case IDENTIFIER:
+                mLexer.pushBack(t);
                 return matchVar();
             default:
+                mLexer.pushBack(t);
                 logError("factor", t.loc);
                 return false;
         }
@@ -173,7 +233,7 @@ class Parser {
         }
         mLexer.pushBack(t);
         logError("anonymous function", t.loc);
-        return false;        
+        return false;
     }
 
     private boolean matchPrefixExpr() throws ParseException {
@@ -232,8 +292,15 @@ class Parser {
         logStart("variable");
         Token t = mLexer.next();
         if (t.type == TokenType.IDENTIFIER) {
-            logger.d("parser", "got an identifier: " + t.text);
-            return matchVarExpr();
+            Logger.d("parser", "got an identifier: " + t.text);
+            Token ahead = mLexer.next();
+            mLexer.pushBack(ahead);
+            if (ahead.type == TokenType.SIGN && "(".equals(ahead.text)) {
+                mLexer.pushBack(t);
+                return matchFunctionCall() && matchVarExpr();
+            } else {
+                return matchOptVarExpr();
+            }
         } else if (t.type == TokenType.SIGN && "(".equals(t.text)) {
             return matchExpression() && matchToken(TokenType.SIGN, ")") && matchVarExpr();
         }
@@ -242,56 +309,188 @@ class Parser {
         return false;
     }
 
+    private boolean matchOptVarExpr() throws ParseException {
+        logStart("optional variable of expression");
+        Token t = mLexer.next();
+        mLexer.pushBack(t);
+        if (t.type == TokenType.SIGN && ("[".equals(t.text) || ".".equals(t.text))) {
+            return matchVarExpr();
+        }
+        return true;
+    }
+
     private boolean matchVarExpr() throws ParseException {
         logStart("variable of expression");
         Token t = mLexer.next();
         if (t.type == TokenType.SIGN) {
             if ("[".equals(t.text)) {
-                return matchExpression() && matchToken(TokenType.SIGN, "]") && matchVarExpr();
+                return matchExpression() && matchToken(TokenType.SIGN, "]") && matchOptVarExpr();
             } else if (".".equals(t.text)) {
-                return matchToken(Token.IDENTIFIER) && matchVarExpr();
-            } else if ("(".equals(t.text)) {
-                mLexer.pushBack(t);
-                return matchFunctionBody() && matchVarExpr();
+                return matchToken(TokenType.IDENTIFIER) && matchOptVarExpr();
             }
+        }
+        mLexer.pushBack(t);
+        logError("variable of expression", t.loc);
+        return false;
+    }
+
+    private boolean matchVarContinue() throws ParseException {
+        logStart("more variables");
+        Token t = mLexer.next();
+        if (t.type == TokenType.SIGN && ",".equals(t.text)) {
+            return matchVarList();
         }
         mLexer.pushBack(t);
         return true;
     }
 
-    private boolean matchVarContinue() throws ParseException {
-        logStart("more variables");
-    }
-
     private boolean matchWhile() throws ParseException {
         logStart("while statement");
+        return matchToken(TokenType.KEYWORD, "while") && matchExpression() && matchBlock();
     }
 
     private boolean matchIf() throws ParseException {
         logStart("if statement");
+        return matchToken(TokenType.KEYWORD, "if") && matchExpression() &&
+            matchToken(TokenType.KEYWORD, "then") && matchBlock() && matchElifStatement() &&
+            matchElseStatement();
+    }
 
+    private boolean matchElifStatement() throws ParseException {
+        logStart("elif statement");
+        Token t = mLexer.next();
+        if (t.type == TokenType.KEYWORD && "elif".equals(t.text)) {
+            return matchExpression() && matchToken(TokenType.KEYWORD, "then") &&
+                matchBlock() && matchElifStatement();
+        }
+        mLexer.pushBack(t);
+        return true;
+    }
+
+    private boolean matchElseStatement() throws ParseException {
+        logStart("else statement");
+        Token t = mLexer.next();
+        if (t.type == TokenType.KEYWORD && "else".equals(t.text)) {
+            return matchBlock();
+        }
+        mLexer.pushBack(t);
+        return true;
     }
 
     private boolean matchFor() throws ParseException {
         logStart("for statement");
+        Token t = mLexer.next();
+        Token id = mLexer.next();
+        if (t.type == TokenType.KEYWORD && "for".equals(t.text) && id.type == TokenType.IDENTIFIER) {
+            Token ahead = mLexer.next();
+            if (ahead.type == TokenType.SIGN && "=".equals(ahead.text)) {
+                return matchExpression() && matchToken(TokenType.SIGN, ",") &&
+                    matchExpression() && matchOptionalStep() && matchBlock();
+            } else if (ahead.type == TokenType.SIGN && ",".equals(ahead.text) ||
+                       ahead.type == TokenType.KEYWORD && "in".equals(ahead.text)) {
+                mLexer.pushBack(ahead);
+                mLexer.pushBack(id);
+                return matchIdList() && matchToken(TokenType.KEYWORD, "in") &&
+                    matchExprList() && matchBlock();
+            }
+            logError("for", ahead.loc);
+        }
+        mLexer.pushBack(id);
+        mLexer.pushBack(t);
+        logError("for", t.loc);
+        return false;
+    }
+
+    private boolean matchIdList() throws ParseException {
+        logStart("Identifier list");
+        return matchToken(TokenType.IDENTIFIER) && matchIdContinue();
+    }
+
+    private boolean matchIdContinue() throws ParseException {
+        logStart("more identifiers");
+        Token t = mLexer.next();
+        if (t.type == TokenType.SIGN && ",".equals(t.text)) {
+            return matchIdList();
+        }
+        mLexer.pushBack(t);
+        return true;
+    }
+
+    private boolean matchOptionalStep() throws ParseException {
+        logStart("optional step");
+        Token t = mLexer.next();
+        if (t.type == TokenType.SIGN && ",".equals(t.text)) {
+            return matchExpression();
+        }
+        mLexer.pushBack(t);
+        return true;
+
     }
 
     private boolean matchFunctionDef() throws ParseException {
         logStart("function defination");
+        return matchToken(TokenType.KEYWORD, "function") && matchToken(TokenType.IDENTIFIER) &&
+            matchFunctionBody();
     }
 
     private boolean matchFunctionBody() throws ParseException {
         logStart("function body");
-
+        return matchToken(TokenType.SIGN, "(") && matchIdList() &&
+            matchToken(TokenType.SIGN, ")") && matchBlock();
     }
 
     private boolean matchLocalDecl() throws ParseException {
         logStart("local declarition");
+        Token t = mLexer.next();
+        Token ahead = mLexer.next();
+        mLexer.pushBack(ahead);
+        if (t.type == TokenType.KEYWORD && "local".equals(t.text)) {
+            if (ahead.type == TokenType.KEYWORD && "function".equals(t.text)) {
+                return matchFunctionDef();
+            } else if (ahead.type == TokenType.IDENTIFIER) {
+                return matchIdList() && matchToken(TokenType.SIGN, "=") &&
+                    matchExprList();
+            }
+        }
+        mLexer.pushBack(t);
+        logError("local declaration", t.loc);
+        return false;
     }
 
     private boolean matchFieldList() throws ParseException {
         logStart("field list");
+        Token t = mLexer.next();
+        mLexer.pushBack(t);
+        if (t.type == TokenType.SIGN && "}".equals(t.text)) {
+            return true;
+        } else {
+            return matchField() && matchFieldContinue();
+        }
+    }
 
+    private boolean matchField() throws ParseException {
+        logStart("field");
+        Token t = mLexer.next();
+        Token ahead = mLexer.next();
+        if (t.type == TokenType.IDENTIFIER && ahead.type == TokenType.SIGN &&
+            "=".equals(ahead.text)) {
+            Logger.d("parser", "got a field key: " + t.text);
+            return matchExpression();
+        } else {
+            mLexer.pushBack(ahead);
+            mLexer.pushBack(t);
+            return matchExpression();
+        }
+    }
+
+    private boolean matchFieldContinue() throws ParseException {
+        logStart("more fields");
+        Token t = mLexer.next();
+        if (t.type == TokenType.SIGN && ",".equals(t.text)) {
+            return matchFieldList();
+        }
+        mLexer.pushBack(t);
+        return true;
     }
 
     private void logStart(String s) {

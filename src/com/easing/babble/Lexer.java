@@ -126,6 +126,9 @@ class Lexer {
         mKeywords.add("elif");
         mKeywords.add("local");
         mKeywords.add("function");
+        mKeywords.add("for");
+        mKeywords.add("in");
+        mKeywords.add("return");        
     }
 
     private boolean isNameStart(char c) {

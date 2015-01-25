@@ -1,10 +1,10 @@
 function fib (n) {
-	 fibs = {1, 1}
+	 fibs = {1, 1};
 	 for i = 3, n
 	     fibs[i] = fibs[i - 1] + fibs[i - 2]
 	 return fibs[n]
 }
 
-println("fibonacci 10 is: ", fib(10));
-println(fib(20));
-println(fib(30));
+println("fibonacci 10 is: ", fib(10))
+println(fib(20))
+println(fib(30))

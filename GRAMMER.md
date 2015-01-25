@@ -2,9 +2,11 @@ This file gives the target grammer of Babble programming language. Since the lan
 
 	 program ::= statements End
 
-	 statements ::= statement ';' statements | null
+	 statements ::= statement stmt_separator statements | null
 
-	 last_statement ::= 'return' expression | null
+	 stmt_separator ::= ';' | null
+
+	 last_statement ::= 'return' expression stmt_separator | null
 
 	 block ::= '{' statements last_statement '}' |
 		   statement
@@ -12,9 +14,9 @@ This file gives the target grammer of Babble programming language. Since the lan
 	 statement ::= variable_list '=' expression_list |
 		       function_call |
 		       'while' expression block |
-		       if expression then block elif_statement else_statement |
-		       for Identifier '=' expression ',' expression optional_step block |
-		       for Identifiler_list in expression_list block |
+		       'if' expression 'then' block elif_statement else_statement |
+		       'for' Identifier '=' expression ',' expression optional_step block |
+		       'for' Identifiler_list 'in' expression_list block |
 		       function_def | 'local' function_def |
 		       'local' identifier_list '=' expresssion_list
 
@@ -22,13 +24,18 @@ This file gives the target grammer of Babble programming language. Since the lan
 
 	 else_statement ::= 'else' block | null
 
-	 var ::= Identifier var_expr |
-		 '(' expression ')' var_expr
+	 optional_step ::= ',' expression | null
 
-	 var_expr ::= '[' expression ']' var_expr |
-	              '.' Identifier var_expr |
-		      function_body var_expr |
-		      null
+	 var ::= Identifier optional_var_expr |
+	         prefix_expr var_expr |
+
+	 prefix_exp ::= function_call |
+                       '(' expression ')'
+
+         optional_var_expr ::= var_expr | null
+
+	 var_expr ::= '[' expression ']' optional_var_expr |
+	              '.' Identifier optional_var_expr
 
 	 variable_list ::= var var_continue
 
