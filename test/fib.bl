@@ -7,4 +7,4 @@ function fib (n) {
 
 println("fibonacci 10 is: ", fib(10))
 println(fib(20))
-println(fib(30))
+println(fib(fib(5)))

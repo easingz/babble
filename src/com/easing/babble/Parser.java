@@ -107,14 +107,12 @@ class Parser {
         logStart("statement");
         Token t = mLexer.next();
         if (t.type == TokenType.IDENTIFIER) {
-            // !!!TODO!!! assignment may also start with a function call when parsing a variable
-            // here we just see it as a function call
             Token ahead = mLexer.next();
             mLexer.pushBack(ahead);
             mLexer.pushBack(t);
             if (ahead.type == TokenType.SIGN && "(".equals(ahead.text)) {
                 Logger.d("parser", "it's a function call");
-                return matchFunctionCall();
+                return matchFunctionCall() && matchMoreThanFuncCall();
             } else {
                 Logger.d("parser", "it's an assignment");
                 return matchAssignment();
@@ -193,8 +191,16 @@ class Parser {
                 }
                 // maybe '(' else fall thru
             case IDENTIFIER:
+                Token ahead = mLexer.next();
+                mLexer.pushBack(ahead);
                 mLexer.pushBack(t);
-                return matchVar();
+                if (ahead.type == TokenType.SIGN && "(".equals(ahead.text)) {
+                    Logger.d("parser", "it's a prefix expression");
+                    return matchPrefixExpr();
+                } else {
+                    Logger.d("parser", "it's a variable");
+                    return matchVar();
+                }
             default:
                 mLexer.pushBack(t);
                 logError("factor", t.loc);
@@ -241,10 +247,12 @@ class Parser {
         Token t = mLexer.next();
         if (t.type == TokenType.IDENTIFIER) {
             Token ahead = mLexer.next();
-            mLexer.pushBack(t);
             mLexer.pushBack(ahead);
-            if (ahead.type == TokenType.SIGN && ahead.text == "(") {
-                return matchFunctionCall();
+            mLexer.pushBack(t);
+            if (ahead.type == TokenType.SIGN && "(".equals(ahead.text)) {
+                // only use the right value attribute of variable with function call start
+                // creepy hack for LL grammar
+                return matchFunctionCall() && matchVar2();
             } else {
                 return matchVar();
             }
@@ -293,40 +301,33 @@ class Parser {
         Token t = mLexer.next();
         if (t.type == TokenType.IDENTIFIER) {
             Logger.d("parser", "got an identifier: " + t.text);
-            Token ahead = mLexer.next();
-            mLexer.pushBack(ahead);
-            if (ahead.type == TokenType.SIGN && "(".equals(ahead.text)) {
-                mLexer.pushBack(t);
-                return matchFunctionCall() && matchVarExpr();
-            } else {
-                return matchOptVarExpr();
-            }
+            return matchVar2();
         } else if (t.type == TokenType.SIGN && "(".equals(t.text)) {
-            return matchExpression() && matchToken(TokenType.SIGN, ")") && matchVarExpr();
+            return matchExpression() && matchToken(TokenType.SIGN, ")") && matchVar1();
         }
         mLexer.pushBack(t);
         logError("variable", t.loc);
         return false;
     }
 
-    private boolean matchOptVarExpr() throws ParseException {
+    private boolean matchVar2() throws ParseException {
         logStart("optional variable of expression");
         Token t = mLexer.next();
         mLexer.pushBack(t);
         if (t.type == TokenType.SIGN && ("[".equals(t.text) || ".".equals(t.text))) {
-            return matchVarExpr();
+            return matchVar1();
         }
         return true;
     }
 
-    private boolean matchVarExpr() throws ParseException {
+    private boolean matchVar1() throws ParseException {
         logStart("variable of expression");
         Token t = mLexer.next();
         if (t.type == TokenType.SIGN) {
             if ("[".equals(t.text)) {
-                return matchExpression() && matchToken(TokenType.SIGN, "]") && matchOptVarExpr();
+                return matchExpression() && matchToken(TokenType.SIGN, "]") && matchVar2();
             } else if (".".equals(t.text)) {
-                return matchToken(TokenType.IDENTIFIER) && matchOptVarExpr();
+                return matchToken(TokenType.IDENTIFIER) && matchVar2();
             }
         }
         mLexer.pushBack(t);
@@ -490,6 +491,18 @@ class Parser {
             return matchFieldList();
         }
         mLexer.pushBack(t);
+        return true;
+    }
+
+    private boolean matchMoreThanFuncCall() throws ParseException {
+        logStart("more than function call");
+        Token t = mLexer.next();
+        mLexer.pushBack(t);
+        if (t.type == TokenType.SIGN && ("[".equals(t.text) || ".".equals(t.text))) {
+            return matchVar1() && matchVarContinue() && matchToken(TokenType.SIGN, "=") &&
+                matchExprList();
+        }
+        // match epslon
         return true;
     }
 
