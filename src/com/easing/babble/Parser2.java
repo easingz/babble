@@ -240,7 +240,12 @@ class Parser2 {
             break;
         default:
             mLexer.pushBack(t);
-            throw new ParseException("parsing factor error at " + t.loc.row + "," + t.loc.col);
+        }
+        if (node != null && node.valid()) {
+            return node;
+        } else {
+            throw new ParseException("parsing factor error at "
+                                     + t.loc.row + "," + t.loc.col);
         }
     }
 
