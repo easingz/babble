@@ -13,7 +13,7 @@ class Parser2 {
 
     public ProgramNode parse() {
         try {
-            ProgramNode node = new ProgramNode(parseStatements);
+            ProgramNode node = new ProgramNode(parseStatements());
             if (node.valid() && matchToken(TokenType.END)) {
                 return node;
             } else {
