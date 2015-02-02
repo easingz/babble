@@ -7,6 +7,7 @@ class Parser2 {
     private Lexer mLexer;
 
     public Parser2(Lexer l) {
+        assert l != null;
         mLexer = l;
     }
 
@@ -105,12 +106,12 @@ class Parser2 {
             mLexer.pushBack(ahead);
             mLexer.pushBack(t);
             if (ahead.type == TokenType.SIGN && "(".equals(ahead.text)) {
-                Logger.d("parser", "it's a function call");
+                Logger.d(TAG, "it's a function call");
                 FuncCallNode funcCall= parseFunctionCall();
                 MoreFuncCallNode moreFuncCall= parseMoreThanFuncCall();
                 node = new FuncStmtNode(funcCall, moreFuncCall);
             } else {
-                Logger.d("parser", "it's an assignment");
+                Logger.d(TAG, "it's an assignment");
                 node = new AssignStmtNode(parseAssignment());
             }
         } else if (t.type == TokenType.KEYWORD) {
@@ -137,7 +138,7 @@ class Parser2 {
         Token t = mLexer.next();
         FuncCallNode node;
         if (t.type == TokenType.IDENTIFIER) {
-            Logger.d("parser", "call fuction: " + t.text);
+            Logger.d(TAG, "call fuction: " + t.text);
             IdNode id = new IdNode(t.text);
             ArgsNode args = parseArguments();
             node = new FuncCallNode(id, args);
@@ -230,10 +231,10 @@ class Parser2 {
             mLexer.pushBack(ahead);
             mLexer.pushBack(t);
             if (ahead.type == TokenType.SIGN && "(".equals(ahead.text)) {
-                Logger.d("parser", "it's a prefix expression");
+                Logger.d(TAG, "it's a prefix expression");
                 node = parsePrefixExpr();
             } else {
-                Logger.d("parser", "it's a variable");
+                Logger.d(TAG, "it's a variable");
                 node = parseVar();
             }
             break;
@@ -247,7 +248,7 @@ class Parser2 {
         logStart("unique expression");
         Token t = mLexer.next();
         if ("-".equals(t.text) || "#".equals(t.text) || "not".equals(t.text)) {
-            Logger.d("parser", "got unique oeprator: " + t.text);
+            Logger.d(TAG, "got unique oeprator: " + t.text);
             UniqOpNode op = new UniqOpNode(t.text);
             ExprNode expr = parseExpression();
             UniqExprNode node = new UniqExprNode(op, expr);
@@ -311,7 +312,7 @@ class Parser2 {
                 }
             }
         } else if (t.type == TokenType.SIGN && "(".equals(t.text)) {
-            Logger.d("parser", "got a prefix expression starting with ( ");
+            Logger.d(TAG, "got a prefix expression starting with ( ");
             ExprNode expr = parseExpression();
             if (expr != null && matchToken(TokenType.SIGN, ")")) {
                 node = new ExprPrefixNode(expr);
@@ -392,7 +393,7 @@ class Parser2 {
         VarNode node;
         Token t = mLexer.next();
         if (t.type == TokenType.IDENTIFIER) {
-            Logger.d("parser", "got an identifier: " + t.text);
+            Logger.d(TAG, "got an identifier: " + t.text);
             IdNode id = new IdNode(t.text);
             node = new IdVarNode(parseVar2());
             if (node.valid()) {
@@ -719,7 +720,7 @@ class Parser2 {
         Token ahead = mLexer.next();
         if (t.type == TokenType.IDENTIFIER && ahead.type == TokenType.SIGN &&
             "=".equals(ahead.text)) {
-            Logger.d("parser", "got a field key: " + t.text);
+            Logger.d(TAG, "got a field key: " + t.text);
             ExprNode expr = parseExpression();
             node = new KeyValFieldNode(new KeyNode(t.text()), expr);
         } else {
@@ -785,7 +786,7 @@ class Parser2 {
 
     private boolean matchToken(TokenType type, String text) throws ParseException {
         assert text != null;
-        Logger.d("parser", "trying to match : " + text);
+        Logger.d(TAG, "trying to match : " + text);
         Token t = mLexer.next();
         boolean ret = t.type == type && t.text.equals(text);
         if (!ret) {
@@ -796,11 +797,11 @@ class Parser2 {
     }
 
     private void logStart(String s) {
-        Logger.d("parser", "Start parsing " + s);
+        Logger.d(TAG, "Start parsing " + s);
     }
 
     private void logError(String s, Token.Location loc) {
-        Logger.d("parser", "error happens when parsing " + s
+        Logger.d(TAG, "error happens when parsing " + s
                  + " at row " + loc.row + " col " + loc.row);
     }
 }
